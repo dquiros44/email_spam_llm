@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is gitignored — never commit real credentials.
+
+proxmox_endpoint  = "https://10.10.10.20:8006/"
+proxmox_api_token = "user@pve!token-name=00000000-0000-0000-0000-000000000000"
+proxmox_node      = "cronos"
+network_bridge    = "vmbr0"
+
+ssh_public_key = "ssh-ed25519 AAAA... your-public-key-here"
+
+# n8n container
+n8n_hostname  = "n8n"
+n8n_vmid      = 110
+n8n_cores     = 2
+n8n_memory_mb = 2048
+n8n_disk_gb   = 16
+
+# Optional in-cluster LLM node — off by default (inference runs on the
+# Windows host GPUs today; flip this on once that's ready to move in-cluster).
+enable_llm_node = false
