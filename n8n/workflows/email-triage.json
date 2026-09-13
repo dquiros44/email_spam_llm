@@ -1,1 +1,369 @@
-{"updatedAt":"2026-09-13T08:37:04.071Z","createdAt":"2026-09-13T07:30:18.570Z","id":"uGscLefODtWWaOJe","name":"llm","description":null,"active":true,"isArchived":false,"nodes":[{"parameters":{"pollTimes":{"item":[{"mode":"everyMinute"}]},"filters":{"q":"-label:ai-important -label:ai-spam -label:ai-sorted"}},"type":"n8n-nodes-base.gmailTrigger","typeVersion":1.4,"position":[-32,16],"id":"1a13eb89-2b74-4754-adad-bc81d010222c","name":"Gmail Trigger","credentials":{"gmailOAuth2":{"id":"8dIVrgkBDaRgDlBR","name":"Gmail account"}}},{"parameters":{"jsCode":"const m = $json;\nconst from = m.From || 'unknown';\nconst subject = m.Subject || '(no subject)';\nconst body = m.snippet || '';\nreturn [{ json: { emailText: `From: ${from}\\nSubject: ${subject}\\nBody:\\n${body}` } }];"},"type":"n8n-nodes-base.code","typeVersion":2,"position":[192,16],"id":"43bb2b67-be86-4521-adde-82df32b2ecba","name":"Code in JavaScript"},{"parameters":{"method":"POST","url":"http://10.10.10.202:1234/v1/chat/completions","sendBody":true,"specifyBody":"json","jsonBody":"={\n  \"model\": \"llama-3.2-3b-instruct-uncensored-i1\",\n  \"temperature\": 0,\n  \"max_tokens\": 200,\n  \"response_format\": {\n    \"type\": \"json_schema\",\n    \"json_schema\": {\n      \"name\": \"email_class\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"category\": { \"type\": \"string\", \"enum\": [\"important\", \"normal\", \"spam\"] },\n          \"reason\": { \"type\": \"string\" },\n          \"confidence\": { \"type\": \"number\" }\n        },\n        \"required\": [\"category\", \"reason\", \"confidence\"]\n      }\n    }\n  },\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are an email triage classifier. Classify the email into exactly one category: 'important' (needs personal attention soon — real person/company, time-sensitive, financial, work, legal, account security), 'normal' (newsletters, receipts, notifications that don't need action), or 'spam' (unsolicited marketing, phishing, scams). Respond only with the JSON.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.emailText) }} }\n  ]\n}","options":{}},"type":"n8n-nodes-base.httpRequest","typeVersion":4.5,"position":[384,16],"id":"9e4612fe-7c17-4508-8c3d-c010b4affa5d","name":"HTTP Request"},{"parameters":{"jsCode":"const out = JSON.parse($json.choices[0].message.content);\nreturn [{ json: { ...$('Gmail Trigger').item.json, ...out } }];"},"type":"n8n-nodes-base.code","typeVersion":2,"position":[576,16],"id":"55c59c15-d7f9-4e6b-87e1-3cac19648643","name":"Code in JavaScript1"},{"parameters":{"rules":{"values":[{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":3},"conditions":[{"leftValue":"={{$json.category}}","rightValue":"important","operator":{"type":"string","operation":"equals"},"id":"445d4f6b-a250-47c3-a737-fad6e3c19a51"}],"combinator":"and"},"renameOutput":true,"outputKey":"important"},{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":3},"conditions":[{"id":"9d6f7812-ebfe-46a0-b246-fb8de1a313cf","leftValue":"={{$json.category}}","rightValue":"spam","operator":{"type":"string","operation":"equals","name":"filter.operator.equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"spam"},{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":3},"conditions":[{"id":"325a9731-5bdb-41dd-ab25-39de0b153efa","leftValue":"={{$json.category}}","rightValue":"normal","operator":{"type":"string","operation":"equals","name":"filter.operator.equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"normal"}]},"options":{"fallbackOutput":"extra"}},"type":"n8n-nodes-base.switch","typeVersion":3.4,"position":[800,16],"id":"0d667e76-4cf7-4ddd-8f67-cc01429afd44","name":"Switch"},{"parameters":{"operation":"addLabels","messageId":"={{$('Gmail Trigger').item.json.id}}","labelIds":["Label_9044821806401923692"]},"type":"n8n-nodes-base.gmail","typeVersion":2.2,"position":[1024,-112],"id":"7ef8f827-1ac9-40aa-99f0-88a8cc76b44d","name":"Add label to message","webhookId":"5ff6aab4-31e2-40a9-b870-c6d75bec9907","credentials":{"gmailOAuth2":{"id":"8dIVrgkBDaRgDlBR","name":"Gmail account"}}},{"parameters":{"operation":"addLabels","messageId":"={{$('Gmail Trigger').item.json.id}}","labelIds":["Label_2590399399190359246"]},"type":"n8n-nodes-base.gmail","typeVersion":2.2,"position":[1120,16],"id":"6b33a4cd-e6e2-48d4-9559-2be68a5f707a","name":"Add label to message1","webhookId":"31d3525e-c011-40ac-994c-a993643e44f4","credentials":{"gmailOAuth2":{"id":"8dIVrgkBDaRgDlBR","name":"Gmail account"}}},{"parameters":{"operation":"addLabels","messageId":"={{$('Gmail Trigger').item.json.id}}","labelIds":["Label_3838751757406186124"]},"type":"n8n-nodes-base.gmail","typeVersion":2.2,"position":[1072,160],"id":"810db375-5057-47cb-bd82-95c3c7ee9c03","name":"Add label to message2","webhookId":"282ce031-03d9-4528-8f77-ce06c6736d6e","credentials":{"gmailOAuth2":{"id":"8dIVrgkBDaRgDlBR","name":"Gmail account"}}}],"connections":{"Gmail Trigger":{"main":[[{"node":"Code in JavaScript","type":"main","index":0}]]},"Code in JavaScript":{"main":[[{"node":"HTTP Request","type":"main","index":0}]]},"HTTP Request":{"main":[[{"node":"Code in JavaScript1","type":"main","index":0}]]},"Code in JavaScript1":{"main":[[{"node":"Switch","type":"main","index":0}]]},"Switch":{"main":[[{"node":"Add label to message","type":"main","index":0}],[{"node":"Add label to message1","type":"main","index":0}],[{"node":"Add label to message2","type":"main","index":0}]]}},"settings":{"executionOrder":"v1","binaryMode":"separate"},"staticData":{"node:Gmail Trigger":{"Gmail Trigger":{"lastTimeChecked":1789288724,"pendingMessageIds":[],"possibleDuplicates":["1a099eb37e5861a8"]}}},"meta":{"templateCredsSetupCompleted":true},"nodeGroups":[],"pinData":{},"versionId":"c6bf1389-7929-4766-ba23-2cac2d241cd0","activeVersionId":"c6bf1389-7929-4766-ba23-2cac2d241cd0","versionCounter":69,"triggerCount":1,"sourceWorkflowId":null,"tags":[],"shared":[{"updatedAt":"2026-09-13T07:30:18.574Z","createdAt":"2026-09-13T07:30:18.574Z","role":"workflow:owner","workflowId":"uGscLefODtWWaOJe","projectId":"YWPLg3EJrElYlZTK","project":{"updatedAt":"2026-09-11T19:40:25.180Z","createdAt":"2026-09-11T19:39:43.885Z","id":"YWPLg3EJrElYlZTK","name":"Daniel Quiros <azyrox144@gmail.com>","type":"personal","icon":null,"description":null,"customTelemetryTags":[],"creatorId":"cb50eeca-d780-4103-ad3a-177ad3a580d9"}}],"versionMetadata":{"name":"Version 0.2","description":"Tried to fix the workflow not activating itself"}}
+{
+  "updatedAt": "2026-09-13T08:37:04.071Z",
+  "createdAt": "2026-09-13T07:30:18.570Z",
+  "id": "uGscLefODtWWaOJe",
+  "name": "llm",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "-label:ai-important -label:ai-spam -label:ai-sorted"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -32,
+        16
+      ],
+      "id": "1a13eb89-2b74-4754-adad-bc81d010222c",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8dIVrgkBDaRgDlBR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $json;\nconst from = m.From || 'unknown';\nconst subject = m.Subject || '(no subject)';\nconst body = m.snippet || '';\nreturn [{ json: { emailText: `From: ${from}\\nSubject: ${subject}\\nBody:\\n${body}` } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        16
+      ],
+      "id": "43bb2b67-be86-4521-adde-82df32b2ecba",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.10.10.202:1234/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.2-3b-instruct-uncensored-i1\",\n  \"temperature\": 0,\n  \"max_tokens\": 200,\n  \"response_format\": {\n    \"type\": \"json_schema\",\n    \"json_schema\": {\n      \"name\": \"email_class\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"category\": { \"type\": \"string\", \"enum\": [\"important\", \"normal\", \"spam\"] },\n          \"reason\": { \"type\": \"string\" },\n          \"confidence\": { \"type\": \"number\" }\n        },\n        \"required\": [\"category\", \"reason\", \"confidence\"]\n      }\n    }\n  },\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are an email triage classifier. Classify the email into exactly one category: 'important' (needs personal attention soon \u00e2\u20ac\u201d real person/company, time-sensitive, financial, work, legal, account security), 'normal' (newsletters, receipts, notifications that don't need action), or 'spam' (unsolicited marketing, phishing, scams). Respond only with the JSON.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.emailText) }} }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        384,
+        16
+      ],
+      "id": "9e4612fe-7c17-4508-8c3d-c010b4affa5d",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = JSON.parse($json.choices[0].message.content);\nreturn [{ json: { ...$('Gmail Trigger').item.json, ...out } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        16
+      ],
+      "id": "55c59c15-d7f9-4e6b-87e1-3cac19648643",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.category}}",
+                    "rightValue": "important",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "445d4f6b-a250-47c3-a737-fad6e3c19a51"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "important"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9d6f7812-ebfe-46a0-b246-fb8de1a313cf",
+                    "leftValue": "={{$json.category}}",
+                    "rightValue": "spam",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "spam"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "325a9731-5bdb-41dd-ab25-39de0b153efa",
+                    "leftValue": "={{$json.category}}",
+                    "rightValue": "normal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "normal"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        16
+      ],
+      "id": "0d667e76-4cf7-4ddd-8f67-cc01429afd44",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$('Gmail Trigger').item.json.id}}",
+        "labelIds": [
+          "Label_9044821806401923692"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -112
+      ],
+      "id": "7ef8f827-1ac9-40aa-99f0-88a8cc76b44d",
+      "name": "Add label to message",
+      "webhookId": "5ff6aab4-31e2-40a9-b870-c6d75bec9907",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8dIVrgkBDaRgDlBR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$('Gmail Trigger').item.json.id}}",
+        "labelIds": [
+          "Label_2590399399190359246"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "6b33a4cd-e6e2-48d4-9559-2be68a5f707a",
+      "name": "Add label to message1",
+      "webhookId": "31d3525e-c011-40ac-994c-a993643e44f4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8dIVrgkBDaRgDlBR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$('Gmail Trigger').item.json.id}}",
+        "labelIds": [
+          "Label_3838751757406186124"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        160
+      ],
+      "id": "810db375-5057-47cb-bd82-95c3c7ee9c03",
+      "name": "Add label to message2",
+      "webhookId": "282ce031-03d9-4528-8f77-ce06c6736d6e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8dIVrgkBDaRgDlBR",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Gmail Trigger": {
+      "Gmail Trigger": {
+        "lastTimeChecked": 1789288724,
+        "pendingMessageIds": [],
+        "possibleDuplicates": [
+          "1a099eb37e5861a8"
+        ]
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "c6bf1389-7929-4766-ba23-2cac2d241cd0",
+  "activeVersionId": "c6bf1389-7929-4766-ba23-2cac2d241cd0",
+  "versionCounter": 69,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-09-13T07:30:18.574Z",
+      "createdAt": "2026-09-13T07:30:18.574Z",
+      "role": "workflow:owner",
+      "workflowId": "uGscLefODtWWaOJe",
+      "projectId": "YWPLg3EJrElYlZTK",
+      "project": {
+        "updatedAt": "2026-09-11T19:40:25.180Z",
+        "createdAt": "2026-09-11T19:39:43.885Z",
+        "id": "YWPLg3EJrElYlZTK",
+        "name": "Daniel Quiros <azyrox144@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "cb50eeca-d780-4103-ad3a-177ad3a580d9"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 0.2",
+    "description": "Tried to fix the workflow not activating itself"
+  }
+}
