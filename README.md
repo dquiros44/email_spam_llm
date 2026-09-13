@@ -91,8 +91,11 @@ See [docs/setup.md](docs/setup.md) for the full walkthrough and
 
 ## Status
 
-🚧 Early scaffold — infra structure and pipeline design are in place;
-guests have not been applied yet.
+✅ Working end-to-end: n8n deployed on Proxmox via Terraform, classifying
+real inbox mail through a local LLM and labeling it in Gmail. See
+[`CLAUDE.md`](CLAUDE.md) for the full current state, live addresses,
+gotchas, and where secrets actually live — kept up to date as the ground
+truth for anyone (human or AI) picking this project back up.
 
 ## License
 
