@@ -7,9 +7,10 @@ running n8n instance:
 n8n export:workflow --all --output=./n8n/workflows/
 ```
 
-## `email-triage.json` (planned)
+## `email-triage.json`
 
-The pipeline designed for this project:
+Exported from the live, working instance (`n8n export:workflow --all --separate`).
+Currently **active** on the test LXC. The pipeline:
 
 ```
 Gmail Trigger → build prompt → POST to local LLM (/v1/chat/completions,
@@ -25,5 +26,13 @@ structured JSON output) → parse category → Switch → Gmail: add label
 - LLM endpoint: `http://10.10.10.202:1234/v1/chat/completions` (LM Studio,
   LAN-reachable; see `docs/architecture.md`).
 
-Not yet exported/committed — build the workflow in the n8n UI first, then
-drop the export here.
+Credentials are **not** included — `email-triage.json` only carries a
+credential *reference* (id + display name), not the actual OAuth token.
+Re-importing this workflow onto a fresh n8n instance requires creating a
+Gmail OAuth2 credential there separately (see `docs/setup.md`), then
+re-pointing each Gmail node at it.
+
+To re-import:
+```bash
+n8n import:workflow --separate --input=./n8n/workflows/
+```
