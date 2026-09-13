@@ -71,6 +71,50 @@ dominated.
 ## Networking
 
 - LM Studio's server binds `0.0.0.0:1234` — reachable from any device on
-  `10.10.10.0/24`, no Tailscale required for LAN clients.
+  `10.10.10.0/24`, no Tailscale required for LAN clients. Needed an
+  explicit inbound firewall rule on `zeus` (Windows Firewall defaults to
+  blocking unsolicited inbound on the Private profile without one):
+  ```powershell
+  New-NetFirewallRule -DisplayName "LM Studio LAN" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 1234 -Profile Private,Domain
+  ```
 - `zeus`'s LAN IP (`10.10.10.202`) should be a DHCP reservation on the
   router, not a floating lease — the pipeline depends on it being stable.
+
+## n8n over HTTPS, and the Gmail OAuth wrinkle
+
+n8n serves plain HTTP by default. Getting a Gmail OAuth2 credential working
+needed two fixes, both driven by constraints Google puts on OAuth redirect
+URIs, not by n8n itself:
+
+1. **Google requires the redirect URI scheme to be `https://`** (with one
+   exception below). Fixed by having the `lxc-n8n` Terraform module
+   generate a self-signed cert at bootstrap time (SAN'd to the container's
+   real DHCP-assigned IP) and setting `N8N_PROTOCOL=https` /
+   `N8N_SSL_KEY` / `N8N_SSL_CERT` in the compose file. Browsers flag the
+   self-signed cert as "not secure," which is expected and harmless —
+   Google only validates the URL *scheme*, not certificate trust, since
+   the actual OAuth redirect is a browser navigation, not a server-to-
+   server call.
+2. **Google also rejects bare IP addresses as redirect URI hosts** —
+   the host must end in a valid public TLD, or be `localhost`. A LAN IP
+   like `10.10.10.109` satisfies neither. Worked around by registering
+   `https://localhost:5678/rest/oauth2-credential/callback` as the
+   redirect URI and doing the one-time "Connect my account" click through
+   an SSH local port-forward (`ssh -L 5678:<n8n-ip>:5678 root@cronos`)
+   so the browser sees it as `localhost`. The resulting OAuth token is
+   stored in n8n regardless of which URL you access it from afterward —
+   the tunnel is only needed for that single authorization step. A real
+   owned domain (pointed at the LAN IP via a hosts-file entry, since
+   Google doesn't verify DNS resolution at registration time) would avoid
+   the tunnel permanently, at the cost of owning a domain.
+
+Practical gotcha hit during setup: an unelevated PowerShell can't create
+firewall rules (`Access is denied`) — needs "Run as administrator."
+
+## Status
+
+The full pipeline (Gmail Trigger → prompt → LM Studio classification →
+parse → Switch → Gmail label) has been built and manually tested
+end-to-end against real inbox mail on the test LXC. Not yet: exported
+workflow JSON committed to the repo, and the workflow's `Active` toggle
+flipped on for unattended polling.
