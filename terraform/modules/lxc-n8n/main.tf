@@ -1,12 +1,12 @@
 resource "proxmox_virtual_environment_container" "n8n" {
-  node_name   = var.node
-  vm_id       = var.vmid
+  node_name    = var.node
+  vm_id        = var.vmid
   unprivileged = true
-  started     = true
+  started      = true
 
   operating_system {
     template_file_id = var.template_file_id
-    type              = "debian"
+    type             = "debian"
   }
 
   cpu {
@@ -30,7 +30,6 @@ resource "proxmox_virtual_environment_container" "n8n" {
   # Docker-in-LXC needs nesting; keyctl avoids some systemd/docker quirks.
   features {
     nesting = true
-    keyctl  = true
   }
 
   initialization {
@@ -47,7 +46,6 @@ resource "proxmox_virtual_environment_container" "n8n" {
     }
   }
 
-  timezone = var.timezone
 }
 
 # Bootstraps Docker + docker-compose and brings up n8n once the container
@@ -62,9 +60,10 @@ resource "null_resource" "n8n_bootstrap" {
 
   connection {
     type        = "ssh"
-    host        = proxmox_virtual_environment_container.n8n.initialization[0].ip_config[0].ipv4[0].address
+    host        = proxmox_virtual_environment_container.n8n.ipv4["eth0"]
     user        = "root"
-    private_key = null # uses ssh-agent / default identity, per the injected public key
+    private_key = file(var.ssh_private_key_path)
+    timeout     = "3m"
   }
 
   provisioner "remote-exec" {
@@ -77,9 +76,13 @@ resource "null_resource" "n8n_bootstrap" {
       "echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable' > /etc/apt/sources.list.d/docker.list",
       "apt-get update -y",
       "apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin",
+      "apt-get install -y openssl",
+      "mkdir -p /opt/n8n/certs",
+      "CONTAINER_IP=$(hostname -I | awk '{print $1}'); openssl req -x509 -nodes -days 825 -newkey rsa:2048 -keyout /opt/n8n/certs/key.pem -out /opt/n8n/certs/cert.pem -subj \"/CN=n8n.local\" -addext \"subjectAltName=IP:$CONTAINER_IP,DNS:localhost\"",
+      "chmod 644 /opt/n8n/certs/key.pem /opt/n8n/certs/cert.pem",
       "mkdir -p /opt/n8n",
-      "cat > /opt/n8n/docker-compose.yml <<'EOF'\nservices:\n  n8n:\n    image: docker.n8n.io/n8nio/n8n\n    restart: unless-stopped\n    ports:\n      - \"5678:5678\"\n    environment:\n      - GENERIC_TIMEZONE=America/Chicago\n      - TZ=America/Chicago\n      - N8N_SECURE_COOKIE=false\n    volumes:\n      - n8n_data:/home/node/.n8n\nvolumes:\n  n8n_data:\nEOF",
-      "cd /opt/n8n && docker compose up -d",
+      "cat > /opt/n8n/docker-compose.yml <<'EOF'\nservices:\n  n8n:\n    image: docker.n8n.io/n8nio/n8n\n    restart: unless-stopped\n    ports:\n      - \"5678:5678\"\n    environment:\n      - N8N_PROTOCOL=https\n      - N8N_SSL_KEY=/certs/key.pem\n      - N8N_SSL_CERT=/certs/cert.pem\n      - GENERIC_TIMEZONE=America/Chicago\n      - TZ=America/Chicago\n    volumes:\n      - n8n_data:/home/node/.n8n\n      - /opt/n8n/certs:/certs:ro\nvolumes:\n  n8n_data:\nEOF",
+      "cd /opt/n8n && docker compose up -d --force-recreate",
     ]
   }
 }

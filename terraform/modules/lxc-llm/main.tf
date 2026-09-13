@@ -19,7 +19,7 @@ resource "proxmox_virtual_environment_container" "llm_node" {
 
   operating_system {
     template_file_id = var.template_file_id
-    type              = "debian"
+    type             = "debian"
   }
 
   cpu {
@@ -42,7 +42,6 @@ resource "proxmox_virtual_environment_container" "llm_node" {
 
   features {
     nesting = true
-    keyctl  = true
   }
 
   initialization {
@@ -59,7 +58,6 @@ resource "proxmox_virtual_environment_container" "llm_node" {
     }
   }
 
-  timezone = var.timezone
 }
 
 resource "null_resource" "llm_bootstrap" {
@@ -70,9 +68,11 @@ resource "null_resource" "llm_bootstrap" {
   }
 
   connection {
-    type = "ssh"
-    host = proxmox_virtual_environment_container.llm_node.initialization[0].ip_config[0].ipv4[0].address
-    user = "root"
+    type        = "ssh"
+    host        = proxmox_virtual_environment_container.llm_node.ipv4["eth0"]
+    user        = "root"
+    private_key = file(var.ssh_private_key_path)
+    timeout     = "3m"
   }
 
   provisioner "remote-exec" {

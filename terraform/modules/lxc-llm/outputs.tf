@@ -1,5 +1,5 @@
 output "ipv4_address" {
-  value = proxmox_virtual_environment_container.llm_node.initialization[0].ip_config[0].ipv4[0].address
+  value = proxmox_virtual_environment_container.llm_node.ipv4["eth0"]
 }
 
 output "vmid" {

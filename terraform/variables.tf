@@ -32,6 +32,12 @@ variable "ssh_public_key" {
   type        = string
 }
 
+variable "ssh_private_key_path" {
+  description = "Path to the matching private key, used by provisioners to connect to freshly-created guests over SSH."
+  type        = string
+  default     = "C:/Users/Zeus/.ssh/id_ed25519"
+}
+
 # --- n8n LXC ---
 
 variable "n8n_hostname" {

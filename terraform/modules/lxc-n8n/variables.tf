@@ -30,6 +30,10 @@ variable "ssh_public_key" {
   type = string
 }
 
+variable "ssh_private_key_path" {
+  type = string
+}
+
 variable "storage" {
   description = "Proxmox storage id for the container rootfs."
   type        = string
